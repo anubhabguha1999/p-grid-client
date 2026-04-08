@@ -1,0 +1,574 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  useWindowDimensions,
+  StyleSheet,
+} from 'react-native';
+import { COLORS, FONTS } from '../../../constants/theme';
+import { useNavigation } from '../../../context/NavigationContext';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  CitiesIcon,
+  AnnualReturnsIcon,
+  PropertyTypeIcon,
+  BudgetIcon,
+  TenantTypeIcon,
+  TenureLeftIcon,
+} from '../../../components/common/WizardIcons';
+
+
+
+interface Step {
+  id: string;
+  label: string;
+  Icon: React.FC<{ color: string; size: number; style?: any }>;
+}
+
+const STEPS: Step[] = [
+  { id: '1', label: 'City', Icon: CitiesIcon },
+  { id: '2', label: 'Annual\nReturns', Icon: AnnualReturnsIcon },
+  { id: '3', label: 'Property\nType', Icon: PropertyTypeIcon },
+  { id: '4', label: 'Budget', Icon: BudgetIcon },
+  { id: '5', label: 'Tenant\nType', Icon: TenantTypeIcon },
+  { id: '6', label: 'Tenure\nLeft', Icon: TenureLeftIcon },
+];
+
+const StepCard = ({
+  item,
+  active,
+  onPress,
+}: {
+  item: Step;
+  active: boolean;
+  onPress: () => void;
+}) => {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+  const IconComponent = item.Icon;
+
+  return (
+    <View style={styles.stepItemWrapper}>
+      <TouchableOpacity
+        style={[
+          styles.stepCard,
+          active && styles.stepCardActive,
+          { width: isMobile ? 85 : 125, height: isMobile ? 95 : 125 },
+        ]}
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        <IconComponent
+          size={isMobile ? 20 : 30}
+          color={active ? COLORS.primary : '#666'}
+          style={styles.stepIcon}
+        />
+        <Text
+          style={[
+            styles.stepLabel,
+            active && styles.stepLabelActive,
+            { fontSize: isMobile ? 12 : 18 },
+          ]}
+        >
+          {item.label}
+        </Text>
+      </TouchableOpacity>
+      <View
+        style={[
+          styles.stepProgressIndicator,
+          active && styles.stepProgressIndicatorActive,
+          { width: isMobile ? 85 : 125 },
+        ]}
+      />
+    </View>
+  );
+};
+
+const DiscoveryWizard = () => {
+  const [activeStep, setActiveStep] = useState('1');
+  const [selections, setSelections] = useState<any>({
+    city: null,
+    roi: null,
+    type: null,
+    budget: null,
+    tenant: null,
+    tenure: null,
+  });
+
+  const { width } = useWindowDimensions();
+  const { navigate } = useNavigation();
+  const isMobile = width < 768;
+
+  const OPTIONS: any = {
+    '1': ['Pune', 'Mumbai', 'Kolkata', 'Gurgaon', 'Chennai', 'New Delhi'],
+    '2': [
+      { label: '5%+', value: '5' },
+      { label: '8%+', value: '8' },
+      { label: '10%+', value: '10' },
+      { label: '12%+', value: '12' },
+      { label: '15%+', value: '15' },
+      { label: '20%+', value: '20' },
+    ],
+    '3': ['Residential', 'Retail', 'Offices', 'Industrial', 'Institutional', 'Others'],
+    '4': [
+      { label: '< 1 Cr', value: { min: '0', max: '1' } },
+      { label: '1 - 2.5 Cr', value: { min: '1', max: '2.5' } },
+      { label: '2.5 - 5 Cr', value: { min: '2.5', max: '5' } },
+      { label: '5 - 7.5 Cr', value: { min: '5', max: '7.5' } },
+      { label: '7.5 - 10 Cr', value: { min: '7.5', max: '10' } },
+      { label: '> 10 Cr', value: { min: '10', max: '1000' } },
+    ],
+    '5': ['Banks', 'IT/Tech', 'Retail', 'Logistics', 'Co-working', 'Others'],
+    '6': [
+      { label: '< 1 Yrs', value: '1' },
+      { label: '2 - 4 Yrs', value: '2' },
+      { label: '4 - 6 Yrs', value: '4' },
+      { label: '6 - 7 Yrs', value: '6' },
+      { label: '7 - 9 Yrs', value: '7' },
+      { label: '9+ Yrs', value: '9' },
+    ],
+  };
+
+  const stepKeys: any = {
+    '1': 'city',
+    '2': 'roi',
+    '3': 'type',
+    '4': 'budget',
+    '5': 'tenant',
+    '6': 'tenure',
+  };
+
+  const handleSelection = (value: any) => {
+    const key = stepKeys[activeStep];
+    setSelections((prev: any) => ({ ...prev, [key]: value }));
+
+    // Auto-advance if not on last step
+    if (parseInt(activeStep) < 6) {
+      setActiveStep(String(parseInt(activeStep) + 1));
+    }
+  };
+
+  const handleShowProperties = () => {
+    let queryParams = [];
+    if (selections.city) queryParams.push(`city=${selections.city}`);
+    if (selections.roi)
+      queryParams.push(`minROI=${selections.roi.value || selections.roi}`);
+    if (selections.type) queryParams.push(`propertyTypes=${selections.type}`);
+    if (selections.budget) {
+      queryParams.push(
+        `minPrice=${selections.budget.value?.min || selections.budget.min || 0
+        }`,
+      );
+      queryParams.push(
+        `maxPrice=${selections.budget.value?.max || selections.budget.max || 1000
+        }`,
+      );
+    }
+    if (selections.tenure)
+      queryParams.push(
+        `minTenure=${selections.tenure.value || selections.tenure}`,
+      );
+
+    const queryString =
+      queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+    navigate(`/explore-properties${queryString}`);
+  };
+
+  const renderOptions = () => {
+    const currentOptions = OPTIONS[activeStep];
+    const currentKey = stepKeys[activeStep];
+    const currentSelection = selections[currentKey];
+
+    return (
+      <View style={[styles.wizardOptions, isMobile && { gap: 10 }]}>
+        {currentOptions.map((opt: any) => {
+          const label = opt.label || opt;
+          const value = opt.value || opt;
+          const isSelected =
+            JSON.stringify(currentSelection) === JSON.stringify(opt);
+
+          return (
+            // <TouchableOpacity
+            //   key={label}
+            //   style={[
+            //     styles.cityOption,
+            //     isMobile && { width: (width - (isMobile ? 40 : 120) - 10) / 2 },
+            //     isSelected && styles.cityOptionSelected,
+            //   ]}
+            //   onPress={() => handleSelection(opt)}
+            // >
+            //   <Text
+            //     style={[
+            //       styles.cityOptionText,
+            //       isSelected && styles.cityOptionTextSelected,
+            //       isMobile && { fontSize: 16 },
+            //     ]}
+            //   >
+            //     {label}
+            //   </Text>
+            // </TouchableOpacity>
+            <LinearGradient
+              colors={['#F2F2F2', '#FFFFFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={[
+                styles.cityOption,
+                isMobile && { width: (width - (isMobile ? 40 : 120) - 10) / 2 },
+                isSelected && styles.cityOptionSelected,
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.cityOptionInner}
+                onPress={() => handleSelection(opt)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.cityOptionText,
+                    isSelected && styles.cityOptionTextSelected,
+                    isMobile && { fontSize: 16 },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          );
+        })}
+      </View>
+    );
+  };
+
+  return (
+    <View
+      style={[
+        styles.wizardContainer,
+        { paddingHorizontal: isMobile ? 20 : 60 },
+      ]}
+    >
+      <Text style={[styles.wizardTitle, { fontSize: isMobile ? 24 : 36 }]}>
+        Discover Opportunities Built for You
+      </Text>
+
+      <View style={styles.stepsContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.stepsScroll,
+            !isMobile && { justifyContent: 'center', flexGrow: 1 },
+          ]}
+          style={{ flexGrow: 0, width: '100%' }}
+        >
+          {STEPS.map((step) => (
+            <StepCard
+              key={step.id}
+              item={step}
+              active={activeStep === step.id}
+              onPress={() => setActiveStep(step.id)}
+            />
+          ))}
+        </ScrollView>
+      </View>
+
+      <View
+        style={[
+          styles.wizardContentCard,
+          isMobile && { width: '95%', paddingVertical: 40, paddingHorizontal: 20 },
+        ]}
+      >
+        <View style={styles.badgeRow}>
+          <View style={styles.wizardStepBadge}>
+            <Text style={styles.wizardStepText}>Step {activeStep} of 6</Text>
+          </View>
+          <View style={styles.wizardProgressBadge}>
+            <Text style={styles.wizardStepText}>
+              {Math.round((parseInt(activeStep) / 6) * 100)}%
+            </Text>
+          </View>
+        </View>
+
+        <Text style={[styles.wizardQuestion, { fontSize: isMobile ? 22 : 36 }]}>
+          What's your {STEPS.find(s => s.id === activeStep)?.label} Preference?
+        </Text>
+        <Text style={styles.wizardSubtext}>
+          Select your {STEPS.find(s => s.id === activeStep)?.label} Preference.
+        </Text>
+
+        {renderOptions()}
+      </View>
+
+      <View style={styles.wizardActions}>
+        <TouchableOpacity
+          style={[styles.skipBtn, isMobile && { flex: 1 }]}
+          onPress={() => {
+            if (parseInt(activeStep) < 6) {
+              setActiveStep(String(parseInt(activeStep) + 1));
+            } else {
+              handleShowProperties();
+            }
+          }}
+        >
+          <Text style={styles.skipBtnText}>
+            {parseInt(activeStep) < 6 ? 'Skip' : 'Finish'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[isMobile && { flex: 2 }]}
+          onPress={handleShowProperties}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#EE2529', '#C73834']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.showPropertiesBtn}
+          >
+            <Text style={styles.showPropertiesText}>Show Properties</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  wizardContainer: {
+    // paddingVertical: 50,
+    paddingBottom: 0,
+    paddingTop: 50,
+    alignItems: 'center',
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+  },
+  wizardTitle: {
+    fontFamily: FONTS.main,
+    fontSize: 42,
+    fontWeight: '400',
+    color: '#262626',
+    marginBottom: 40,
+    textAlign: 'center',
+  },
+  stepsContainer: {
+    width: '100%',
+    maxWidth: 900,
+    marginBottom: 40,
+    position: 'relative',
+    paddingBottom: 4,
+  },
+  stepsBaseLine: {
+    position: 'absolute',
+    bottom: 0,
+    left: 20,
+    right: 20,
+    height: 3,
+    backgroundColor: '#EAEAEA',
+    borderRadius: 2,
+  },
+  stepsScroll: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  stepItemWrapper: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  stepCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 24,
+    borderTopWidth: 5,
+    borderTopColor: '#666',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#F0F0F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 15,
+    elevation: 4,
+  },
+  stepCardActive: {
+    borderTopColor: COLORS.primary,
+    borderColor: 'rgba(211, 47, 47, 0.1)',
+  },
+  stepIcon: {
+    marginBottom: 12,
+  },
+  stepLabel: {
+    fontFamily: FONTS.main,
+    color: '#666',
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingHorizontal: 8,
+  },
+  stepLabelActive: {
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  stepProgressIndicator: {
+    height: 4,
+    backgroundColor: '#EAEAEA',
+    borderRadius: 2,
+  },
+  stepProgressIndicatorActive: {
+    backgroundColor: COLORS.primary,
+  },
+  wizardContentCard: {
+    width: '50%',
+    maxWidth: 900,
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    paddingHorizontal: 30,
+    paddingTop: 60,
+    paddingBottom: 6,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.04,
+    shadowRadius: 20,
+    elevation: 8,
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    position: 'absolute',
+    top: 25,
+    paddingHorizontal: 30,
+  },
+  wizardStepBadge: {
+    backgroundColor: '#FFF3CA',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 100,
+  },
+  wizardProgressBadge: {
+    backgroundColor: '#FFF3CA',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 100,
+  },
+  wizardStepText: {
+    fontFamily: FONTS.main,
+    fontSize: 12, // Slightly smaller for mobile compatibility
+    fontWeight: '500',
+    color: '#8B7B3E',
+  },
+  wizardQuestion: {
+    fontFamily: FONTS.main,
+    fontWeight: '400',
+    color: '#1A1A1A',
+    marginBottom: 10,
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  wizardSubtext: {
+    fontFamily: FONTS.main,
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#666',
+    marginBottom: 35,
+    textAlign: 'center',
+  },
+  wizardOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 30,
+    marginBottom: 40,
+    height: 300,
+    width: 550
+  },
+  cityOption: {
+  width: 130,
+  height: 130,
+  borderRadius: 15,
+  alignItems: 'center',
+  justifyContent: 'center',
+  shadowColor: '#000000',
+  shadowOffset: { width: 2, height: 2 },
+  shadowOpacity: 0.25,
+  shadowRadius: 4,
+  elevation: 3,
+},
+cityOptionInner: {
+  width: '100%',
+  height: '100%',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: 15,
+},
+  cityOptionSelected: {
+    borderWidth: 0,
+    backgroundColor: '#FFF',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: -3, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  cityOptionText: {
+    fontFamily: FONTS.main,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#767676',
+
+  },
+  cityOptionTextSelected: {
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  wizardActions: {
+    flexDirection: 'row',
+    gap: 15,
+    alignItems: 'center',
+    marginTop: 30,
+  },
+  skipBtn: {
+    height: 48,
+    minWidth: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#CCC',
+    borderRadius: 8,
+    paddingHorizontal: 20,
+  },
+  skipBtnText: {
+    fontFamily: FONTS.main,
+    color: '#666',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  showPropertiesBtn: {
+    height: 48,
+    minWidth: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    paddingHorizontal: 30,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  showPropertiesText: {
+    fontFamily: FONTS.main,
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  
+});
+
+export default DiscoveryWizard;
