@@ -8,7 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { COLORS } from '../../../constants/theme';
+import { COLORS, FONTS } from '../../../constants/theme';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '../../../context/NavigationContext';
 import { usePropertyAPIs } from '../../../../helpers/hooks/propertyAPIs/usePropertyApis';
@@ -65,7 +65,9 @@ const CategoryCard = ({
       </View>
       <View style={styles.cardFooter}>
         <View style={styles.countBadge}>
-          <Text style={styles.countText}>{count} Properties Listed</Text>
+          <Text style={styles.countText}>
+            {count} {count === 1 ? 'Property' : 'Properties'} Listed
+          </Text>
         </View>
         <TouchableOpacity
           activeOpacity={0.8}
@@ -116,22 +118,27 @@ const CategoriesSection = () => {
   else cols = 4;
 
   const cardWidth = (availableWidth - gap * (cols - 1)) / cols;
+  const actualCardWidth = 310;
+  const gridWidth = (actualCardWidth * Math.min(INITIAL_CATEGORIES.length, cols)) + (gap * (Math.min(INITIAL_CATEGORIES.length, cols) - 1));
 
   return (
     <View style={styles.outerContainer}>
       <View style={[styles.container, { paddingHorizontal: containerPadding }]}>
         <View style={styles.headerRow}>
+          <View style={{ width: 30 }} /> 
           <Text style={[styles.sectionTitle, { fontSize: isMobile ? 28 : 42 }]}>
-            Explore By <Text style={styles.highlightText}>Property Type</Text> 
+            Explore all Categories
           </Text>
-          {loading && <ActivityIndicator color={COLORS.primary} size="small" />}
+          <View style={{ width: 30, alignItems: 'center' }}>
+            {loading && <ActivityIndicator color={COLORS.primary} size="small" />}
+          </View>
         </View>
-        <View style={[styles.grid, { gap }]}>
+        <View style={[styles.grid, { gap, rowGap: 30, maxWidth: gridWidth, alignSelf: 'center' }]}>
           {INITIAL_CATEGORIES.map(cat => (
             <CategoryCard
               key={cat.id}
               item={cat}
-              width={cardWidth}
+              width={actualCardWidth}
               count={counts[cat.value] || 0}
             />
           ))}
@@ -143,14 +150,14 @@ const CategoriesSection = () => {
 
 const styles = StyleSheet.create({
   outerContainer: {
-    backgroundColor: COLORS.white,
+    
     width: '100%',
     alignItems: 'center',
   },
   container: {
-    paddingVertical: 60,
+    paddingVertical: 80,
     width: '100%',
-    maxWidth: '90%',
+    maxWidth: 1200,
   },
   headerRow: {
     flexDirection: 'row',
@@ -160,9 +167,10 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   sectionTitle: {
-    fontWeight: '300',
+    fontWeight: '400',
     color: '#262626',
     textAlign: 'center',
+    fontFamily:FONTS.avenir,
   },
   highlightText: {
     fontWeight: '300',
@@ -170,7 +178,7 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     width: '100%',
   },
   card: {
@@ -185,10 +193,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f5f5f5',
     marginBottom: 5,
-    maxWidth: 370,
+    maxWidth: '100%',
   },
   imageContainer: {
-    height: 180,
+    height: 205,
     width: '100%',
     position: 'relative',
   },

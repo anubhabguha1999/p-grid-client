@@ -6,9 +6,11 @@ import {
   StyleSheet,
   Alert,
   TouchableOpacity,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useNavigation } from '../../../context/NavigationContext';
-import { COLORS } from '../../../constants/theme';
+import { COLORS, FONTS } from '../../../constants/theme';
 import PropertyCard, { Property } from '../../../components/PropertyCard';
 import CompareBanner from './CompareBanner';
 import LinearGradient from 'react-native-linear-gradient';
@@ -71,7 +73,54 @@ const FEATURED_PROPERTIES: Property[] = [
   },
 ];
 
-const FeaturedSection = ({ properties }: { properties: any[] }) => {
+const PropertyCardSkeleton = ({ width }: { width: number }) => {
+  const pulseAnim = React.useRef(new Animated.Value(0.3)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.7,
+          duration: 1000,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.3,
+          duration: 1000,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.ease),
+        }),
+      ]),
+    ).start();
+  }, [pulseAnim]);
+
+  return (
+    <View style={[styles.skeletonCard, { width }]}>
+      <View style={styles.skeletonHeader}>
+        <Animated.View style={[styles.skeletonText, { width: '60%', opacity: pulseAnim }]} />
+        <Animated.View style={[styles.skeletonText, { width: '40%', height: 16, opacity: pulseAnim }]} />
+      </View>
+      <Animated.View style={[styles.skeletonImage, { opacity: pulseAnim }]} />
+      <View style={styles.skeletonContent}>
+        <View style={styles.skeletonRow}>
+          <View style={{ flex: 1, gap: 10 }}>
+            <Animated.View style={[styles.skeletonText, { width: '80%', height: 14, opacity: pulseAnim }]} />
+            <Animated.View style={[styles.skeletonText, { width: '70%', height: 14, opacity: pulseAnim }]} />
+            <Animated.View style={[styles.skeletonText, { width: '90%', height: 14, opacity: pulseAnim }]} />
+          </View>
+          <Animated.View style={[styles.skeletonRoi, { opacity: pulseAnim }]} />
+        </View>
+        <View style={styles.skeletonActions}>
+          <Animated.View style={[styles.skeletonBtn, { width: 80, opacity: pulseAnim }]} />
+          <Animated.View style={[styles.skeletonBtn, { width: 100, opacity: pulseAnim }]} />
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const FeaturedSection = ({ properties, loading }: { properties: any[]; loading?: boolean }) => {
   const { width } = useWindowDimensions();
   const { navigate } = useNavigation();
   const [selectedProperties, setSelectedProperties] = useState<Property[]>([]);
@@ -165,18 +214,24 @@ const FeaturedSection = ({ properties }: { properties: any[] }) => {
         Featured Properties
       </Text>
       <View style={[styles.gridContainer, { gap }]}>
-        {displayProperties.map(prop => (
-          <PropertyCard
-            key={prop.id}
-            item={prop}
-            width={cardWidth}
-            isCompare={true} // Enable compare button
-            isSelected={selectedProperties.some(p => p.id === prop.id)}
-            onToggleCompare={handleToggleCompare}
-            onView={id => navigate(`/propertyDetails/${id}`)}
-            onEnquire={id => navigate(`/enquiry/${id}`)}
-          />
-        ))}
+        {loading ? (
+          // Show 3 skeletons during loading
+          [1, 2, 3].map((_, i) => (
+            <PropertyCardSkeleton key={`skeleton-${i}`} width={cardWidth > 420 ? 420 : cardWidth} />
+          ))
+        ) : (
+          displayProperties.map(prop => (
+            <PropertyCard
+              key={prop.id}
+              item={prop}
+              isCompare={true} // Enable compare button
+              isSelected={selectedProperties.some(p => p.id === prop.id)}
+              onToggleCompare={handleToggleCompare}
+              onView={id => navigate(`/propertyDetails/${id}`)}
+              onEnquire={id => navigate(`/enquiry/${id}`)}
+            />
+          ))
+        )}
       </View>
       <View style={styles.explorePropertyWrapper}>
         <TouchableOpacity
@@ -205,11 +260,12 @@ const styles = StyleSheet.create({
     marginTop: 60,
   },
   sectionTitle: {
-    fontWeight: '300',
+    fontWeight: '400',
     color: '#262626',
     marginBottom: 40,
     textAlign: 'center',
     fontSize: 42,
+    fontFamily:FONTS.avenir,
     // fontStyle: 'normal',
   },
   stickyBannerWrapper: {
@@ -248,6 +304,53 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '600',
     fontSize: 15,
+  },
+  skeletonCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 15,
+    overflow: 'hidden',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+    maxWidth: '100%',
+  },
+  skeletonHeader: {
+    padding: 20,
+    gap: 8,
+  },
+  skeletonText: {
+    height: 24,
+    backgroundColor: '#E1E1E1',
+    borderRadius: 4,
+  },
+  skeletonImage: {
+    height: 277,
+    width: '100%',
+    backgroundColor: '#F0F0F0',
+  },
+  skeletonContent: {
+    padding: 20,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  skeletonRoi: {
+    width: 97,
+    height: 78,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 15,
+  },
+  skeletonActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  skeletonBtn: {
+    height: 40,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 5,
   },
 });
 
