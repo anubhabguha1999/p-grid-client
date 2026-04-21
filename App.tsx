@@ -5,6 +5,7 @@ import LoginScreen from './src/screens/auth/LoginScreen';
 import ExplorePropertiesScreen from './src/screens/properties/ExplorePropertiesScreen';
 import CalculatorsScreen from './src/screens/calculators/CalculatorsScreen';
 import ExploreBrokersScreen from './src/screens/brokers/ExploreBrokersScreen';
+import ContactBrokerScreen from './src/screens/brokers/ContactBrokerScreen';
 import InvestorsScreen from './src/screens/investors/InvestorsScreen';
 import ListPropertyScreen from './src/screens/list-property/ListPropertyScreen';
 import ContactUsScreen from './src/screens/contact-us/ContactUsScreen';
@@ -16,6 +17,8 @@ import {
 } from './src/context/NavigationContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { WishlistProvider } from './src/context/WishlistContext';
+import { CompareProvider } from './src/context/CompareContext';
+import CompareBanner from './src/screens/dashboard/components/CompareBanner';
 import { ActivityIndicator } from 'react-native';
 import SignupScreen from './src/screens/auth/SignupScreen';
 import ProfileScreen from './src/screens/profile/ProfileScreen';
@@ -104,8 +107,9 @@ const AppContent = () => {
       case currentPath === '/calculators':
         return <CalculatorsScreen />;
       case currentPath === '/explore-brokers':
-      case currentPath.startsWith('/contact-brokers'):
         return <ExploreBrokersScreen />;
+      case currentPath.startsWith('/contact-broker/'):
+        return <ContactBrokerScreen />;
       case currentPath === '/my-prifile':
         return isLoggedIn ? <InvestorsScreen /> : <LoginScreen />;
       case currentPath === '/list-property':
@@ -150,6 +154,7 @@ const AppContent = () => {
       {renderScreen()}
       {showLoginModal && <LoginScreen onClose={closeLoginModal} />}
       {showSignupModal && <SignupScreen onClose={closeSignupModal} />}
+      <CompareBanner />
     </View>
   );
 };
@@ -159,7 +164,9 @@ const App = () => {
     <AuthProvider>
       <NavigationProvider>
         <WishlistProvider>
-          <AppContent />
+          <CompareProvider>
+            <AppContent />
+          </CompareProvider>
         </WishlistProvider>
       </NavigationProvider>
     </AuthProvider>
