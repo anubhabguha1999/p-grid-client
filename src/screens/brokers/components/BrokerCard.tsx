@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Platform, Animated, Share } from 'react-native';
 import { MapPin } from 'lucide-react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { useAuth } from '../../../context/AuthContext';
 import bottom from "../../../assets/ExploreBrokers/bottom.png";
 import top from "../../../assets/ExploreBrokers/top.png";
 import share from "../../../assets/Calculator/share.png"
@@ -27,6 +28,10 @@ const BrokerCard: React.FC<BrokerCardProps> = ({
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const flipAnimation = useRef(new Animated.Value(0)).current;
+  // "This is me" → the logged-in user is viewing their own broker profile.
+  const { user } = useAuth();
+  const brokerUserId = item?.id || item?.userId;
+  const isOwnProfile = !!user?.userId && !!brokerUserId && user.userId === brokerUserId;
 
   const flipCard = () => {
     if (isFlipped) {
@@ -127,30 +132,40 @@ const BrokerCard: React.FC<BrokerCardProps> = ({
             ]}
           >
             <View style={{ alignItems: isMobile ? 'center' : 'flex-start' }}>
-              <Text style={styles.brokerCompany}>{capitalize(item.name) || "APJ Realtors"}</Text>
+              <Text style={styles.brokerCompany}>{capitalize(item.name) || 'N/A'}</Text>
               <Image
-                source={require('../../../assets/ExploreBrokers/cardImg.png')}
+                source={
+                  item.profilePhoto
+                    ? { uri: item.profilePhoto }
+                    : require('../../../assets/ExploreBrokers/cardImg.png')
+                }
                 style={styles.brokerImage}
                 resizeMode="cover"
               />
             </View>
 
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                onContactBroker();
-              }}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['#EE2529', '#C73834']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.contactBtn}
+            {isOwnProfile ? (
+              <View style={styles.ownProfileBadge}>
+                <Text style={styles.ownProfileText}>This is your profile</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onContactBroker();
+                }}
+                activeOpacity={0.8}
               >
-                <Text style={styles.contactBtnText}>Contact Broker</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={['#EE2529', '#C73834']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.contactBtn}
+                >
+                  <Text style={styles.contactBtnText}>Contact Broker</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Right Section */}
@@ -169,7 +184,7 @@ const BrokerCard: React.FC<BrokerCardProps> = ({
                   { fontSize: isMobile ? 24 : 32, textAlign: !isMobile ? 'left' : 'center' },
                 ]}
               >
-                {capitalize(item.agentName) || "Rajendra P"}
+                {capitalize(item.agentName) || 'N/A'}
               </Text>
               <View
                 style={[
@@ -178,8 +193,8 @@ const BrokerCard: React.FC<BrokerCardProps> = ({
                 ]}
               >
                 <MapPin size={isMobile ? 14 : 18} color="#EE2529" />
-                <Text style={[styles.locationText, isMobile && { fontSize: 14 }]}>{item.location || "Pune"}</Text>
-                <Text style={[styles.reraText, isMobile && { fontSize: 14 }]}>RERA : {item.rera || "123456789"}</Text>
+                <Text style={[styles.locationText, isMobile && { fontSize: 14 }]}>{item.location || 'N/A'}</Text>
+                <Text style={[styles.reraText, isMobile && { fontSize: 14 }]}>RERA : {item.rera || 'N/A'}</Text>
               </View>
 
               <View style={styles.divider} />
@@ -193,7 +208,7 @@ const BrokerCard: React.FC<BrokerCardProps> = ({
                 >
                   Specializes In:
                 </Text>
-                {(item.tags && item.tags.length > 0 ? item.tags : ['MNC Client', 'Industrial', 'Residential', 'Commercial', 'Office Lease']).map((tag: any, idx: number) => (
+                {(item.tags && item.tags.length > 0 ? item.tags : []).map((tag: any, idx: number) => (
                   <View key={idx} style={styles.tag}>
                     <Text style={[styles.tagText, isMobile && { fontSize: 14 }]}>{tag}</Text>
                   </View>
@@ -203,11 +218,11 @@ const BrokerCard: React.FC<BrokerCardProps> = ({
 
             <View style={styles.statsColumn}>
               <View style={styles.statLine}>
-                <Text style={[styles.statHighlight, isMobile && { fontSize: 16 }]}>{item.propertiesListed || 7}</Text>
+                <Text style={[styles.statHighlight, isMobile && { fontSize: 16 }]}>{item.propertiesListed ?? 0}</Text>
                 <Text style={[styles.statLabel, isMobile && { fontSize: 14 }]}>Properties Listed</Text>
               </View>
               <View style={styles.statLine}>
-                <Text style={[styles.statHighlight, isMobile && { fontSize: 16 }]}>{item.dealsClosed || 45}</Text>
+                <Text style={[styles.statHighlight, isMobile && { fontSize: 16 }]}>{item.dealsClosed ?? 0}</Text>
                 <Text style={[styles.statLabel, isMobile && { fontSize: 14 }]}>Deals Closed</Text>
               </View>
             </View>
@@ -225,33 +240,39 @@ const BrokerCard: React.FC<BrokerCardProps> = ({
         
         <View style={[styles.cardContentBack, { padding: isMobile ? 12 : 30 }]}>
           <View style={[styles.backHeader, isMobile && { flexDirection: 'column', gap: 5, alignItems: 'flex-start' }]}>
-            <Text style={[styles.backAgentName, isMobile && { fontSize: 20 }]}>{capitalize(item.agentName) || "Rajendra P"}</Text>
-            <Text style={[styles.backCompany, isMobile && { fontSize: 14 }]}>{capitalize(item.name) || "APJ Realtors"}</Text>
+            <Text style={[styles.backAgentName, isMobile && { fontSize: 20 }]}>{capitalize(item.agentName) || 'N/A'}</Text>
+            <Text style={[styles.backCompany, isMobile && { fontSize: 14 }]}>{capitalize(item.name) || 'N/A'}</Text>
           </View>
-          
+
           <View style={[styles.backDivider, isMobile && { marginVertical: 10 }]} />
-          
+
           <Text style={[styles.backDescription, isMobile && { fontSize: 13, lineHeight: 18 }]}>
-            {item.description || `${item.name || "APJ Realtors"} is a dynamic real estate firm dedicated to helping clients find their perfect property. Whether you're buying, selling, or investing, our expert team combines market insight with personalized service to ensure a smooth and successful experience. At APJ, we make your real estate journey our top priority`}
+            {item.description || 'N/A'}
           </Text>
           
           <View style={styles.backFooter}>
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                onContactBroker();
-              }}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['#EE2529', '#C73834']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.backContactBtn, isMobile && { paddingVertical: 8, paddingHorizontal: 12 }]}
+            {isOwnProfile ? (
+              <View style={styles.ownProfileBadge}>
+                <Text style={styles.ownProfileText}>This is your profile</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onContactBroker();
+                }}
+                activeOpacity={0.8}
               >
-                <Text style={[styles.backContactBtnText, isMobile && { fontSize: 13 }]}>Contact Broker</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={['#EE2529', '#C73834']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.backContactBtn, isMobile && { paddingVertical: 8, paddingHorizontal: 12 }]}
+                >
+                  <Text style={[styles.backContactBtnText, isMobile && { fontSize: 13 }]}>Contact Broker</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
             
             <TouchableOpacity 
               style={[styles.shareBtn, isMobile && { paddingVertical: 6, paddingHorizontal: 10 }]}
@@ -397,6 +418,20 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 20,
     backgroundColor: '#f5f5f5',
+  },
+  ownProfileBadge: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+  },
+  ownProfileText: {
+    color: '#6B7280',
+    fontWeight: '700',
+    fontSize: 13,
   },
   contactBtn: {
     paddingVertical: 12,

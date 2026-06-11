@@ -31,6 +31,18 @@ import ShareIcon from './ShareIcon';
 import { usePropertyAPIs } from '../../helpers/hooks/propertyAPIs/usePropertyApis';
 declare const window: any;
 
+/**
+ * Guard a display string against raw null/undefined leaking into the UI.
+ * Callers should already pass formatted values (formatINR/formatTenureYears),
+ * but this catches the literal "null"/"undefined" strings and empty values.
+ */
+const safeValue = (v: any): string => {
+  if (v === null || v === undefined) return 'N/A';
+  const s = String(v).trim();
+  if (s === '' || s === 'null' || s === 'undefined' || s === 'NaN') return 'N/A';
+  return s;
+};
+
 export interface Property {
   id: string;
   title: string;
@@ -83,6 +95,12 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLocationExpanded, setIsLocationExpanded] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+
+  // "My listing" → the logged-in user owns/brokered this property; they shouldn't
+  // be able to enquire on or wishlist their own listing.
+  const raw: any = (item as any).raw || {};
+  const ownerIds = [raw.ownerId, raw.brokerId, raw.added_by, raw.salesId].filter(Boolean);
+  const isOwnListing = !!user?.userId && ownerIds.includes(user.userId);
 
   useEffect(() => {
     setIsLiked(likedPropertyIds.has(item.id));
@@ -230,17 +248,20 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
           <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
             <ShareIcon width={19.35} height={16.67} color={COLORS.white} />
           </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={handleToggleLike}
-            >
-              <Heart
-                width={19.35}
-                height={16.67}
-                color={isLiked ? COLORS.primary : COLORS.white}
-                fill={isLiked ? COLORS.primary : 'transparent'}
-              />
-            </TouchableOpacity>
+            {/* Hide wishlist on your own listing */}
+            {!isOwnListing && (
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={handleToggleLike}
+              >
+                <Heart
+                  width={19.35}
+                  height={16.67}
+                  color={isLiked ? COLORS.primary : COLORS.white}
+                  fill={isLiked ? COLORS.primary : 'transparent'}
+                />
+              </TouchableOpacity>
+            )}
         </View>
 
         {/* Overlay Bar for MNC Client and Compare */}
@@ -284,16 +305,15 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
           <View style={styles.propDetailItem}>
             <Text style={styles.detailLabel}>
               Cost:{' '}
-              <Text style={styles.detailValue}>
-                {item.price !== 'null' && item?.price ? item?.price : '0'}
-              </Text>
+              <Text style={styles.detailValue}>{safeValue(item.price)}</Text>
             </Text>
             <Text style={styles.detailLabel}>
-              Annual Rent : <Text style={styles.detailValue}>{item.rent}</Text>
+              Annual Rent :{' '}
+              <Text style={styles.detailValue}>{safeValue(item.rent)}</Text>
             </Text>
             <Text style={styles.detailLabel}>
               Tenure Left :{' '}
-              <Text style={styles.detailValue}>{item.tenure}</Text>
+              <Text style={styles.detailValue}>{safeValue(item.tenure)}</Text>
             </Text>
           </View>
 
@@ -307,8 +327,18 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
             >
               <Text style={styles.roiLabel}>ROI</Text>
               <View style={styles.roiValueContainer}>
-                <Text style={styles.roiValueText}>{item.roi}</Text>
-                <Text style={styles.percentageSymbol}>%</Text>
+                {(() => {
+                  // The "%" symbol is rendered by the UI, so strip any "%" the value
+                  // may already carry to avoid a double "%". Hide the symbol for N/A.
+                  const raw = String(item.roi ?? '').replace(/%/g, '').trim();
+                  const isNum = raw !== '' && raw.toUpperCase() !== 'N/A';
+                  return (
+                    <>
+                      <Text style={styles.roiValueText}>{isNum ? raw : 'N/A'}</Text>
+                      {isNum && <Text style={styles.percentageSymbol}>%</Text>}
+                    </>
+                  );
+                })()}
               </View>
             </LinearGradient>
           </View>
@@ -321,25 +351,32 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
               <Text style={styles.viewBtnText}>View</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            onPress={() => {
-              if (user) {
-                handleEnquire();
-              } else {
-                openLoginModal();
-              }
-            }}
-            style={styles.enquireBtnWrapper}
-          >
-            <LinearGradient
-              colors={['#EE2529', '#C73834']}
-              start={{ x: 0.0159, y: 0.5 }}
-              end={{ x: 0.972, y: 0.5 }}
-              style={styles.enquireBtnGradient}
+          {isOwnListing ? (
+            // Owner/broker can't enquire on their own listing.
+            <View style={[styles.enquireBtnWrapper, styles.ownListingPill]}>
+              <Text style={styles.ownListingText}>Your listing</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={() => {
+                if (user) {
+                  handleEnquire();
+                } else {
+                  openLoginModal();
+                }
+              }}
+              style={styles.enquireBtnWrapper}
             >
-              <Text style={styles.enquireBtnText}>Enquire</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={['#EE2529', '#C73834']}
+                start={{ x: 0.0159, y: 0.5 }}
+                end={{ x: 0.972, y: 0.5 }}
+                style={styles.enquireBtnGradient}
+              >
+                <Text style={styles.enquireBtnText}>Enquire</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
       
@@ -638,6 +675,19 @@ const styles = StyleSheet.create({
     color: '#767676',
     fontWeight: '500',
     fontSize: 14,
+  },
+  ownListingPill: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingVertical: 8,
+  },
+  ownListingText: {
+    color: '#6B7280',
+    fontWeight: '700',
+    fontSize: 12,
   },
   enquireBtnWrapper: {
     flex: 1,
